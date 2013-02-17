@@ -8,7 +8,7 @@ The “pairs” implementation consists of one MapReduce job where the mapper re
 
 The “stripes” implementation consists of a MapReduce job where the mapper reads lines and emits a (<Text>,<HMapSIW>) pair for each unique word in a line and the map associated with that word.  In addition, a value of ‘*’ is added to each word’s map to represent the its individual presence in the line.   A combiner aggregates each mapper’s output, aggregating maps based on key.  Both emit a (<Text>,<HMapSIW>) pairs. 
 
-The above MapReduce jobs just provide counts of given words and pairs (per line) from the dataset.  I used a Python script to calculate PMI values based on MapReduce output files.  While this probably does not meet the intention of the assignment, I could not think of a way to organize the data through a secondary MapReduce job (or by adjusting the above approaches) to allow calculations from terms anywhere in the dataset.   A quick Python script, however, made the job very easy.
+The above MapReduce jobs just provide counts of given words and pairs (per line) from the dataset.  I used a Python script to calculate PMI values based on MapReduce output files.  While this probably does not meet the intention of the assignment, I could not think of a way to organize the data through a secondary MapReduce job (or by adjusting the above approaches) to allow calculations from terms anywhere in the dataset.  Some Python scription, however, made the job straightforward.
 
 Question 1
 
