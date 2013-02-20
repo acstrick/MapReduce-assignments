@@ -41,3 +41,18 @@ The following are the words with highest PMI values associated with “cloud”:
 The following are the words with highest PMI values associated with “love”: (‘cloud’,’my’), -12.04; (‘cloud’,’I’), -11.97; and (‘cloud’,’his’), -11.79.
 
 
+Grading
+=======
+
+The use of the python script defeats the intention of the assignment,
+but the answers to Q4 and Q5 don't seem right, and the value you got
+for Q3 is a bit off.
+
+-4 for Q4, Q5, -6 for pairs implementation, -6 for stripes implementation.
+
+Score: 19/35
+
+-Jimmy
+
+
+
