@@ -14,9 +14,10 @@
  * permissions and limitations under the License.
  */
 
-package edu.umd.cloud9.example.ir;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.io.InputStreamReader;
 import java.util.Arrays;
 
@@ -32,10 +33,12 @@ import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.MapFile;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
@@ -45,11 +48,11 @@ import edu.umd.cloud9.io.pair.PairOfWritables;
 import edu.umd.cloud9.util.fd.Int2IntFrequencyDistribution;
 import edu.umd.cloud9.util.fd.Int2IntFrequencyDistributionEntry;
 
-public class LookupPostings extends Configured implements Tool {
+public class LookupPostingsCompressed extends Configured implements Tool {
   private static final String INDEX = "index";
   private static final String COLLECTION = "collection";
 
-  private LookupPostings() {}
+  private LookupPostingsCompressed() {}
 
   /**
    * Runs this tool.
@@ -77,7 +80,7 @@ public class LookupPostings extends Configured implements Tool {
       System.out.println("args: " + Arrays.toString(args));
       HelpFormatter formatter = new HelpFormatter();
       formatter.setWidth(120);
-      formatter.printHelp(LookupPostings.class.getName(), options);
+      formatter.printHelp(LookupPostingsCompressed.class.getName(), options);
       ToolRunner.printGenericCommandUsage(System.out);
       System.exit(-1);
     }
@@ -93,32 +96,64 @@ public class LookupPostings extends Configured implements Tool {
     Configuration config = new Configuration();
     FileSystem fs = FileSystem.get(config);
     MapFile.Reader reader = new MapFile.Reader(new Path(indexPath + "/part-r-00000"), config);
-
+ 
+    ArrayListWritable<PairOfInts> postings = null;
+    
     FSDataInputStream collection = fs.open(new Path(collectionPath));
     BufferedReader d = new BufferedReader(new InputStreamReader(collection));
 
     Text key = new Text();
-    PairOfWritables<IntWritable, ArrayListWritable<PairOfInts>> value =
-        new PairOfWritables<IntWritable, ArrayListWritable<PairOfInts>>();
+    IntWritable DF = new IntWritable();
+    PairOfWritables<IntWritable, BytesWritable> value =
+        new PairOfWritables<IntWritable, BytesWritable>();
+    //PairOfWritables<IntWritable, ArrayListWritable<PairOfInts>> value =
+    //    new PairOfWritables<IntWritable, ArrayListWritable<PairOfInts>>();
 
+    
     System.out.println("Looking up postings for the term \"starcross'd\"");
     key.set("starcross'd");
 
-    reader.get(key, value);
-
-    ArrayListWritable<PairOfInts> postings = value.getRightElement();
+    reader.get(key, value);     
+    DF = value.getLeftElement();    
+    ByteArrayInputStream bIn = new ByteArrayInputStream(value.getRightElement().getBytes());
+    DataInputStream in = new DataInputStream(bIn);
+    //pairs = new PairOfInts();
+    postings = new ArrayListWritable<PairOfInts>();
+    int CURRGAP = 0;
+    for(int i = 0; i < DF.get(); i++) {
+      int left = WritableUtils.readVInt(in);
+      int right = WritableUtils.readVInt(in);
+      CURRGAP = left + CURRGAP;
+      postings.add(new PairOfInts(CURRGAP, right));  // make a new pairs here to avoid pointer issue
+      // Make a new PairOfInts here to avoid pointer issue with pairs
+    }
     for (PairOfInts pair : postings) {
       System.out.println(pair);
-      collection.seek(pair.getLeftElement());
+      collection.seek(pair.getLeftElement());  //prints out the lines from dataset
       System.out.println(d.readLine());
     }
-
+  
+    
     key.set("gold");
     reader.get(key, value);
-    System.out.println("Complete postings list for 'gold': " + value);
+    // decompress applicable postings
+    DF = value.getLeftElement();
+    ByteArrayInputStream bIn2 = new ByteArrayInputStream(value.getRightElement().getBytes());
+    DataInputStream in2 = new DataInputStream(bIn2);
+    //pairs = new PairOfInts();
+    postings = new ArrayListWritable<PairOfInts>();
+    CURRGAP = 0;
+    for(int i = 0; i < DF.get(); i++) {
+      int left = WritableUtils.readVInt(in2);
+      int right = WritableUtils.readVInt(in2);
+      CURRGAP = left + CURRGAP;
+      postings.add(new PairOfInts(CURRGAP, right));  // make a new pairs here to avoid pointer issue
+      // Make a new PairOfInts here to avoid pointer issue with pairs
+    }
+    System.out.println("Complete postings list for 'gold': " +  new PairOfWritables(DF,postings));
+    //System.out.println("Complete postings list for 'gold': " + value);
 
     Int2IntFrequencyDistribution goldHist = new Int2IntFrequencyDistributionEntry();
-    postings = value.getRightElement();
     for (PairOfInts pair : postings) {
       goldHist.increment(pair.getRightElement());
     }
@@ -130,10 +165,23 @@ public class LookupPostings extends Configured implements Tool {
 
     key.set("silver");
     reader.get(key, value);
-    System.out.println("Complete postings list for 'silver': " + value);
-
+    // decompress applicable postings
+    DF = value.getLeftElement();
+    ByteArrayInputStream bIn3 = new ByteArrayInputStream(value.getRightElement().getBytes());
+    DataInputStream in3 = new DataInputStream(bIn3);
+    //pairs = new PairOfInts();
+    postings = new ArrayListWritable<PairOfInts>();
+    CURRGAP = 0;
+    for(int i = 0; i < DF.get(); i++) {
+      int left = WritableUtils.readVInt(in3);
+      int right = WritableUtils.readVInt(in3);
+      CURRGAP = left + CURRGAP;
+      postings.add(new PairOfInts(CURRGAP, right));  // make a new pairs here to avoid pointer issue
+      // Make a new PairOfInts here to avoid pointer issue with pairs
+    }
+    System.out.println("Complete postings list for 'silver': " +  new PairOfWritables(DF,postings));
+    
     Int2IntFrequencyDistribution silverHist = new Int2IntFrequencyDistributionEntry();
-    postings = value.getRightElement();
     for (PairOfInts pair : postings) {
       silverHist.increment(pair.getRightElement());
     }
@@ -160,6 +208,6 @@ public class LookupPostings extends Configured implements Tool {
    * Dispatches command-line arguments to the tool via the {@code ToolRunner}.
    */
   public static void main(String[] args) throws Exception {
-    ToolRunner.run(new LookupPostings(), args);
+    ToolRunner.run(new LookupPostingsCompressed(), args);
   }
 }

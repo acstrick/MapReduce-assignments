@@ -14,9 +14,10 @@
  * permissions and limitations under the License.
  */
 
-package edu.umd.cloud9.example.ir;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Arrays;
@@ -36,9 +37,11 @@ import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.MapFile;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
@@ -46,12 +49,12 @@ import edu.umd.cloud9.io.array.ArrayListWritable;
 import edu.umd.cloud9.io.pair.PairOfInts;
 import edu.umd.cloud9.io.pair.PairOfWritables;
 
-public class BooleanRetrieval extends Configured implements Tool {
+public class BooleanRetrievalCompressed extends Configured implements Tool {
   private MapFile.Reader index;
   private FSDataInputStream collection;
   private Stack<Set<Integer>> stack;
 
-  private BooleanRetrieval() {}
+  private BooleanRetrievalCompressed() {}
 
   private void initialize(String indexPath, String collectionPath, FileSystem fs) throws IOException {
     index = new MapFile.Reader(new Path(indexPath + "/part-r-00000"), fs.getConf());
@@ -128,13 +131,28 @@ public class BooleanRetrieval extends Configured implements Tool {
 
   private ArrayListWritable<PairOfInts> fetchPostings(String term) throws IOException {
     Text key = new Text();
-    PairOfWritables<IntWritable, ArrayListWritable<PairOfInts>> value =
-        new PairOfWritables<IntWritable, ArrayListWritable<PairOfInts>>();
+    PairOfWritables<IntWritable, BytesWritable> value =
+        new PairOfWritables<IntWritable, BytesWritable>();
 
     key.set(term);
     index.get(key, value);
-
-    return value.getRightElement();
+    
+    // decompress applicable postings
+    IntWritable DF = value.getLeftElement();
+    ByteArrayInputStream bIn = new ByteArrayInputStream(value.getRightElement().getBytes());
+    DataInputStream in = new DataInputStream(bIn);
+    ArrayListWritable<PairOfInts> postings = new ArrayListWritable<PairOfInts>();
+    int CURRGAP = 0;
+    for(int i = 0; i < DF.get(); i++) {
+      int left = WritableUtils.readVInt(in);
+      int right = WritableUtils.readVInt(in);
+      CURRGAP = left + CURRGAP;
+      postings.add(new PairOfInts(CURRGAP, right));  //TODO make a new pairs here to avoid pointer issue
+      // Make a new PairOfInts here to avoid pointer issue with pairs
+    }
+   
+    return postings;
+    //return value.getRightElement();
   }
 
   private String fetchLine(long offset) throws IOException {
@@ -173,7 +191,7 @@ public class BooleanRetrieval extends Configured implements Tool {
       System.out.println("args: " + Arrays.toString(args));
       HelpFormatter formatter = new HelpFormatter();
       formatter.setWidth(120);
-      formatter.printHelp(LookupPostings.class.getName(), options);
+      formatter.printHelp(LookupPostingsCompressed.class.getName(), options);
       ToolRunner.printGenericCommandUsage(System.out);
       System.exit(-1);
     }
@@ -207,6 +225,6 @@ public class BooleanRetrieval extends Configured implements Tool {
    * Dispatches command-line arguments to the tool via the {@code ToolRunner}.
    */
   public static void main(String[] args) throws Exception {
-    ToolRunner.run(new BooleanRetrieval(), args);
+    ToolRunner.run(new BooleanRetrievalCompressed(), args);
   }
 }
