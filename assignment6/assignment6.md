@@ -35,3 +35,13 @@ Z = filter D by
 (SUBSTRING(date_hour,0,6) == 'Feb 08');
 
 store Z into 'cnt-all';
+
+Grading
+=======
+
+Everything looks great!
+Minor note: filtering *before* grouping will make your script more efficient.
+
+Score: 25/25
+
+-Jimmy
