@@ -11,8 +11,4 @@ As a side note, though, using a Pair object to represent the postings
 list makes the index larger than it needs to be: you can actually fit
 the *df* in the `BytesWritable` also.
 
-Original score: 35/35
-Late penalty: -75%
-Final score: 9/35
 
--Jimmy
