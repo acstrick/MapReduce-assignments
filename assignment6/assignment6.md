@@ -42,6 +42,4 @@ Grading
 Everything looks great!
 Minor note: filtering *before* grouping will make your script more efficient.
 
-Score: 25/25
 
--Jimmy
