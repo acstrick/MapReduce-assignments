@@ -16,12 +16,4 @@ zorah   8
 Question 6.
 31940
 
-Grading
-=======
 
-Your answers are correct, but I wasn't able to get the job to run... the job run script refers to `src/Cloud9/`,
-which doesn't appear to be checked into the repo...
-
-Please be more careful next time.
-
--Jimmy
